@@ -1,0 +1,106 @@
+1>  student
+
+create table student(roll varchar(5) primary key,
+first_name varchar(50) not null,
+middle_name varchar(50) ,
+last_name varchar(50) not null,
+phone varchar(10) not null,
+class varchar(4) not null,
+dept number(1) not null,
+email varchar(50) not null);
+
+2>  faculty
+
+ create table faculty(id varchar(10) primary key,
+ first_name varchar(50) not null,
+ middle_name varchar(50) ,
+ last_name varchar(50) not null,
+ phone varchar(10) not null,
+ designation number(1) not null,
+ dept number(1) not null,
+ email varchar(50) not null);
+
+3>  sem_subjects
+
+create table sem_subjects(class char(2) not null,
+subject varchar(50) not null,
+abbr varchar(10) not null,
+dept number(1) not null,
+sem number(1) not null,
+type number(1) not null);
+
+4>  subject
+
+create table subject(class char(4) not null,
+faculty_id varchar(10) not null,
+sub varchar(10) not null,
+foreign key(faculty_id) references faculty(id));
+
+5>  timetable
+
+create table timetable(class varchar(4) not null,
+dept number(1) not null,
+day number(1) not null,
+first varchar(10),
+second varchar(10),
+third varchar(10),
+fourth varchar(10),
+fifth varchar(10),
+sixth varchar(10),
+seventh varchar(10),
+eighth varchar(10));
+
+6>  bunksheet
+
+create table bunksheet(roll varchar(5) not null,
+day date not null,
+event number(1) not null,
+faculty_incharge varchar(10) not null,
+first varchar(10),
+second varchar(10),
+third varchar(10),
+fourth varchar(10),
+fifth varchar(10),
+sixth varchar(10),
+seventh varchar(10),
+eighth varchar(10),
+foreign key(roll) references student(roll) on delete cascade,
+foreign key (faculty_incharge) references faculty(id) on delete cascade);
+
+7>  attendance
+
+create table attendance(roll varchar(5) not null,
+day date not null,
+first varchar(10),
+second varchar(10),
+third varchar(10),
+fourth varchar(10),
+fifth varchar(10),
+sixth varchar(10),
+seventh varchar(10),
+eighth varchar(10),
+foreign key (roll) references student(roll) on delete cascade);
+
+8>    practical
+
+create table practical(day number(1) not null,
+class varchar(5) not null,
+subject varchar(10) not null,
+start_roll char(5) not null,
+end_roll char(5) not null,
+batch char(2) not null,
+f_id varchar(10) not null,
+foreign key(f_id) references faculty(id));
+
+9>    login
+
+create table login(username varchar(50) not null,
+password varchar(50) not null,
+faculty_id varchar(10) primary key,
+class_teacher char(4),
+event_head number(1),
+admin number(1),
+foreign key (faculty_id) references faculty(id) on delete cascade);
+
+
+

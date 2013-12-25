@@ -1,0 +1,374 @@
+1>  login  returns the faculty id and the type
+
+create or replace procedure login_verify(V_name in login.username%type ,v_password in login.username%type , v_id out faculty.id%type , v_event out login.event_head%type , v_admin out login.admin%type,v_fname out faculty.first_name%type,v_dept out number)
+is
+pass login.password%type;	
+begin
+	select password into pass from login where username = 	v_name;
+	if v_password <> pass then
+		v_id := 'xxxxx';
+		v_event := 0;
+		V_admin := 0;
+		v_fname :='xxxxx';
+		v_dept:=0;
+	else
+		select faculty_id,event_head,admin into v_id , v_event , v_admin from login where username = v_name;
+		select first_name,dept into v_fname,v_dept from faculty where id = v_id;
+	end if;
+exception
+	when no_data_found then
+		v_id := 'xxxxx';
+		v_event := 0;
+		V_admin := 0;
+		v_fname :='xxxxx';
+		v_dept:=0;
+	when others then
+		v_id := 'xxxxx';
+		v_event := 0;
+		V_admin := 0;
+		v_fname :='xxxxx';
+		v_dept:=0;
+end;
+
+2> create faculty account
+
+create or replace trigger login_create
+after insert or update on faculty
+REFERENCING NEW AS NEW OLD AS OLD
+for each row
+when ( new.designation<4 )
+begin
+	if INSERTING then
+	delete from login where faculty_id = :old.id;
+	insert into login values(lower(:new.first_name) || '.' || lower(:new.last_name),'mitcoe',:new.id,null,0,0);
+	
+	elsif UPDATING then
+	delete from login where faculty_id = :old.id;
+	insert into login values(lower(:new.first_name) || '.' || lower(:new.last_name),'mitcoe',:new.id,null,0,0);
+	
+	else 
+	delete from login where faculty_id = :old.id;
+	end if;
+
+end;
+
+
+3> check if event or admin head exists
+
+create or replace procedure event_admin_search(v_name out varchar2,v_type number,v_mode number)
+is
+begin
+ if v_mode = 1 then
+ select first_name||' '||last_name into v_name from faculty where id = (select faculty_id from login where event_head = v_type);
+ else
+ select first_name||' '||last_name into v_name from faculty where id = (select faculty_id from login where admin = v_type);
+ end if;
+exception
+ when no_data_found then
+ v_name := 'xxxxx';
+ when others then
+ v_name :='xxxxx';
+end;
+
+
+
+4>change event or admin
+
+create or replace procedure event_head_admin(v_id faculty.id%type, v_type login.admin%type, v_mode number)
+is
+f_id faculty.id%type;
+begin
+	if v_mode = 1 then
+	select faculty_id into f_id from login where event_head = v_type;
+	
+	update login
+	set event_head = 0 where faculty_id = f_id;
+
+	update login
+	set event_head = v_type where faculty_id = v_id;
+	commit;
+
+	else
+
+	select faculty_id into f_id from login where admin = v_type;
+	
+	update login
+	set admin = 0 where faculty_id = f_id;
+
+	update login
+	set admin = v_type where faculty_id = v_id;
+	commit;
+
+	end if;
+exception
+	when no_data_found then
+	if v_mode = 1 then
+	update login
+	set event_head = v_type where faculty_id = v_id;
+	else
+	update login
+	set admin = v_type where faculty_id = v_id;
+	end if;
+	commit;
+	when others then
+	if v_mode = 1 then
+	update login
+	set event_head = v_type where faculty_id = v_id;
+	else
+	update login
+	set admin = v_type where faculty_id = v_id;
+	end if;	
+	commit;
+end;
+
+5>  check the roll if exists and return name,dept and class details in bunksheet form
+
+create or replace procedure bunk_name_return(v_roll student.roll%type ,v_name out varchar2, v_dept out varchar2, v_class out varchar2)
+is
+stu_dept number;
+begin
+	select first_name,dept,class into v_name,stu_dept,v_class from student where roll = v_roll;
+	case stu_dept
+		when 1 then
+			v_dept :='COMPUTER';
+		when 2 then
+			v_dept :='IT';
+		when 3 then
+			v_dept :='ENTC';
+		when 4 then
+			v_dept :='MECHANICAL';
+		when 5 then
+			v_dept :='CEES';
+		else
+			v_dept := 'xxx';
+	end case;
+exception
+	when no_data_found then
+		v_name :='xxxxx';
+		v_dept :='xxxxx';
+		v_class := 'xxx';
+	when others then
+		v_name :='xxxxx';
+		v_dept :='xxxxx';
+		v_class := 'xxx';
+end;
+
+6> this check if a bunksheet of the student for that day exists
+
+create or replace procedure bunk_check_date(v_roll student.roll%type , v_date bunksheet.day%type,v_flag out number )
+ is
+ eve bunksheet.event%type;
+ begin
+  select event into eve from bunksheet where roll = v_roll and to_char(day,'fmmm/fmdd/yyyy') = to_char(v_date,'fmmm/fmdd/yyyy');
+
+  v_flag:=1;
+ exception
+  when no_data_found then
+  v_flag:=0;
+  when others then
+  v_flag:=0;
+ end;
+
+7> shows if the student roll exists or accessible
+
+create or replace procedure fac_search_roll_chk(v_roll student.roll%type,v_dpt number,v_flag out number)
+is
+dpt number; 
+begin
+	select dept into dpt from student where roll = v_roll;
+	if v_dpt = dpt then
+		v_flag :=0;
+	else
+		v_flag :=1;
+	end if;
+exception
+	when no_data_found then
+		v_flag:=2;
+	when others then
+		v_flag:=2;
+end;
+
+
+8> password change
+
+create or replace procedure password_change(v_id faculty.id%type , v_old_pass login.password%type, v_new_pass login.password%type,v_flag out number)
+ is
+ f_pass login.password%type;
+ begin
+  select password into f_pass from login where faculty_id = v_id;
+
+  if f_pass = v_old_pass then
+   update login
+   set password = v_new_pass
+   where faculty_id = v_id;
+   v_flag:=1;
+   commit;
+  else
+   v_flag:=0;
+  end if;
+ exception
+  when no_data_found then
+
+   v_flag:=0;
+dbms_output.put_line('Exception');
+  when others then
+   v_flag:=0;
+dbms_output.put_line('Exception');
+ end;
+
+
+9> cursor to implement attendance
+
+create or replace procedure attendance_upd(v_dpt number)
+is
+cursor c1 is select * from bunksheet where roll in (select roll from student where dept = v_dpt);
+
+r_bunk c1%rowtype;
+r_att attendance%rowtype;
+temp_roll varchar2(32);
+temp_day date;
+
+flag number;
+query varchar2(500);
+
+cnt number;
+
+begin
+
+open c1;
+
+loop
+
+fetch c1 into r_bunk;
+exit when c1 %notfound;
+temp_roll:=r_bunk.roll;
+temp_day:=r_bunk.day;
+
+select count(*) into cnt from attendance where roll = r_bunk.roll and day = r_bunk.day;
+
+	if cnt = 1 then
+		select * into r_att from attendance where roll = r_bunk.roll and day = r_bunk.day;
+
+		query := 'update attendance set ';
+		if (r_att.first = 'A') and (r_bunk.first = 'Y') then			
+			query:= query || 'first = ''P*'' ';
+			flag:=1;
+	
+		end if;
+
+		
+		if (r_att.second = 'A' ) and (r_bunk.second = 'Y') then
+			if flag = 1 then
+				query :=query || ',';
+			end if;
+			query := query || 'second = ''P*'' ';
+			flag:=1;
+		end if;
+ 	
+		if (r_att.third = 'A') and (r_bunk.third = 'Y') then
+			if flag = 1 then
+				query :=query || ',';
+			end if;
+			query := query || 'third = ''P*'' ';
+			flag:=1;
+		end if;
+	
+		if (r_att.fourth = 'A') and (r_bunk.fourth = 'Y') then
+			if flag = 1 then
+				query :=query || ',';
+			end if;
+			query := query || 'fourth = ''P*'' ';
+			flag:=1;
+		end if;
+	
+		if (r_att.fifth = 'A') and (r_bunk.fifth = 'Y') then
+			if flag = 1 then
+				query :=query || ',';
+			end if;
+			query := query || 'fifth = ''P*'' ';
+			flag:=1;
+		end if;
+
+			if (r_att.sixth = 'A') and (r_bunk.sixth = 'Y') then
+				if flag = 1 then
+					query :=query || ',';
+				end if;
+				query := query || 'sixth = ''P*'' ';
+				flag:=1;
+			end if;
+
+			if (r_att.seventh = 'A') and (r_bunk.seventh = 'Y') then
+				if flag = 1 then
+					query :=query || ',';
+				end if;
+				query := query || 'seventh = ''P*'' ';
+				flag:=1;
+			end if;
+
+			if (r_att.eighth = 'A') and (r_bunk.eighth = 'Y') then
+				if flag = 1 then
+					query :=query || ',';
+				end if;
+				query := query || 'eighth = ''P*'' ';
+				flag:=1;
+			end if;
+			
+			if flag = 1 then
+				query:= query || 'where roll = :temp_roll and day = :temp_day';
+				execute immediate query using temp_roll,temp_day;
+			end if;
+		end if;
+	end loop;
+
+	close c1;
+	commit;
+
+end;
+
+
+10> search_id
+this searches for faculty id and returns the id
+
+create or replace procedure search_id(v_id faculty.id%type,v_flag out number)
+is
+
+begin
+	select count(*) into v_flag from faculty where id = v_id;
+exception
+	when no_data_found then
+	v_flag := 0;
+	when others then
+	v_flag := 0;
+end;
+
+
+11> this was written 10 mins before the project.. NEVER FORGET!!!
+
+ create or replace procedure bunk_del(v_dt date,v_roll student.roll%type)
+ is
+ begin
+ delete from bunksheet where roll = v_roll and to_char(day,'fmmm/fmdd/yyyy') = to_char(v_dt,'fmmm/fmdd/yyyy');
+ commit;
+ end;
+
+
+
+12> If the roll is being inserted after bunksheet or attendance has been entered then the new entry should be given the last roll
+
+ create or replace procedure stu_late(v_new out number,v_class student.class%type)
+ is
+ v_roll student.roll%type;
+ begin
+  select max(roll) into v_roll from student;
+v_new := to_number(substr(v_roll,4,2))+1;
+ end;
+
+
+13> check if attendance or bunksheet for the students of a class have been entered
+
+create or replace procedure exist_student(v_class student.class % type,v_cnt out number)
+is
+begin
+select count(day) into v_cnt from bunksheet where roll in(select roll from student where class =  v_class);
+end;
+

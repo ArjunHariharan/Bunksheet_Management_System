@@ -1,0 +1,5 @@
+Bunksheets are given to students who missed lectures while participating in college events or were involved in the organizing committe of any event.
+
+Since there are many events and each event has many students participating in it, the process of granting bunksheets and considering it becomes tedious.
+
+This system automates the entire process with the thorough understanding of college working and existing infrastructure.
